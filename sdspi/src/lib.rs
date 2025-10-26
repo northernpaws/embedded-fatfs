@@ -403,7 +403,7 @@ where
         &mut self.spi
     }
 
-    async fn cmd<R: Resp>(&mut self, cmd: Cmd<R>) -> Result<u8, Error> {
+    pub async fn cmd<R: Resp>(&mut self, cmd: Cmd<R>) -> Result<u8, Error> {
         if cmd.cmd != idle().cmd {
             self.wait_idle().await?;
         }
