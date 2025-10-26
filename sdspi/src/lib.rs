@@ -112,6 +112,7 @@ where
     delay: D,
     card: Option<Card>,
     _align: PhantomData<ALIGN>,
+    mut crc_en: bool,
 }
 
 impl<SPI, D, ALIGN> SdSpi<SPI, D, ALIGN>
@@ -126,11 +127,14 @@ where
             delay,
             card: None,
             _align: PhantomData,
+            crc_en: false,
         }
     }
 
     /// To comply with the SD card spec, [sd_init] must be called between powerup and calling this function.
-    pub async fn init(&mut self) -> Result<(), Error> {
+    pub async fn init(&mut self, crc_en: bool) -> Result<(), Error> {
+        self.crc_en = crc_en;
+        
         let r = async {
             with_timeout(self.delay.clone(), 1000, async {
                 loop {
@@ -142,10 +146,13 @@ where
             })
             .await??;
 
-            // "The SPI interface is initialized in the CRC OFF mode in default"
-            // -- SD Part 1 Physical Layer Specification v9.00, Section 7.2.2 Bus Transfer Protection
-            if self.cmd(cmd::<R1>(0x3B, 1)).await? != R1_IDLE_STATE {
-                return Err(Error::Cmd59Error);
+            if self.crc_en {
+                trace!("Enabling CRC mode");
+                // "The SPI interface is initialized in the CRC OFF mode in default"
+                // -- SD Part 1 Physical Layer Specification v9.00, Section 7.2.2 Bus Transfer Protection
+                if self.cmd(cmd::<R1>(0x3B, 1)).await? != R1_IDLE_STATE {
+                    return Err(Error::Cmd59Error);
+                }
             }
 
             with_timeout(self.delay.clone(), 1000, async {
@@ -365,15 +372,17 @@ where
             .await
             .map_err(|_| Error::SpiError)?;
 
-        let mut crc_bytes = [0xFF; 2];
-        self.spi
-            .transfer_in_place(&mut crc_bytes)
-            .await
-            .map_err(|_| Error::SpiError)?;
-        let crc = u16::from_be_bytes(crc_bytes);
-        let calc_crc = crc16(buffer);
-        if crc != calc_crc {
-            return Err(Error::CrcMismatch(crc, calc_crc));
+        if self.crc_en {
+            let mut crc_bytes = [0xFF; 2];
+            self.spi
+                .transfer_in_place(&mut crc_bytes)
+                .await
+                .map_err(|_| Error::SpiError)?;
+            let crc = u16::from_be_bytes(crc_bytes);
+            let calc_crc = crc16(buffer);
+            if crc != calc_crc {
+                return Err(Error::CrcMismatch(crc, calc_crc));
+            }
         }
 
         Ok(())
