@@ -206,7 +206,6 @@ where
             trace!("CID Product Name: {}", card.cid.product_name());
             trace!("CID Product revision: {}", card.cid.product_revision());
             trace!("CID Serial: {}", card.cid.serial());
-            trace!("CID Serial: {}", card.cid.serial());
             trace!("CSD version:{}", card.csd.version());
             trace!("CSD transfer rate:{}", card.csd.transfer_rate());
             // TODO: block_length?
