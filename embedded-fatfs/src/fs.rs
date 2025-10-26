@@ -6,8 +6,6 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::u32;
 
-use defmt::{trace};
-
 #[cfg(all(not(feature = "std"), feature = "alloc", feature = "lfn"))]
 use alloc::string::String;
 #[cfg(feature = "std")]
