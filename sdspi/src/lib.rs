@@ -251,6 +251,10 @@ where
             trace!("CSD block count:{}", card.csd.block_count());
             trace!("CSD card size:{}", card.csd.card_size());
             trace!("CSD erase block size:{}", card.csd.erase_size_blocks());
+            trace!("OCR is busy:{}", card.ocr.is_busy());
+            trace!("OCR over 2tb:{}", card.ocr.over_2tb());
+            trace!("OCR UHS-II:{}", card.ocr.uhs2_card_status());
+            trace!("OCR high-capacity (true for SDHC/SDXC/SDUC, false for SDSC):{}", card.ocr.high_capacity());
             debug!("Found card with size: {}bytes", card.size());
 
             self.card = Some(card);
