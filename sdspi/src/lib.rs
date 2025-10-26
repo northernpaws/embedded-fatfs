@@ -341,8 +341,8 @@ where
         Ok(self.card.ok_or(Error::NotInitialized)?.size())
     }
 
-    pub fn card(&mut self) -> &Option<Card> {
-        &self.card
+    pub fn card(&mut self) -> Option<Card> {
+        self.card.clone()
     }
 
     async fn read_data(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
