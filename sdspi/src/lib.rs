@@ -341,6 +341,10 @@ where
         Ok(self.card.ok_or(Error::NotInitialized)?.size())
     }
 
+    pub fn card(&mut self) -> &Option<Card> {
+        &self.card
+    }
+
     async fn read_data(&mut self, buffer: &mut [u8]) -> Result<(), Error> {
         let r = with_timeout(self.delay.clone(), 1000, async {
             let mut byte = 0xFF;
