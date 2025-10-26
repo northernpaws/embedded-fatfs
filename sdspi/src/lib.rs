@@ -7,7 +7,7 @@ use core::fmt::Debug;
 use core::future::Future;
 use core::marker::PhantomData;
 use embassy_futures::select::{select, Either};
-use sdio_host::sd::{CardCapacity, CID, CSD, OCR, SD};
+use sdio_host::sd::{CardCapacity, CID, CSD, OCR, SD, BlockSize};
 use sdio_host::{common_cmd::*, sd_cmd::*};
 
 // MUST be the first module listed
@@ -208,7 +208,27 @@ where
             trace!("CID Serial: {}", card.cid.serial());
             trace!("CSD version:{}", card.csd.version());
             trace!("CSD transfer rate:{}", card.csd.transfer_rate());
-            // TODO: block_length?
+            match card.csd.block_length() {
+                BlockSize::B1 => trace!("CSD block length: 1"),
+                BlockSize::B2 = trace!("CSD block length: 2"),
+                BlockSize::B4 = trace!("CSD block length: 4"),
+                BlockSize::B8 = trace!("CSD block length: 8"),
+                BlockSize::B16 = trace!("CSD block length: 16"),
+                BlockSize::B32 = trace!("CSD block length: 32"),
+                BlockSize::B64 = trace!("CSD block length: 64"),
+                BlockSize::B128 = trace!("CSD block length: 1128"),
+                BlockSize::B256 = trace!("CSD block length: 256"),
+                BlockSize::B512 = trace!("CSD block length: 1512"),
+                BlockSize::B1024 = trace!("CSD block length: 1024"),
+                BlockSize::B2048 = trace!("CSD block length: 2048"),
+                BlockSize::B4096 = trace!("CSD block length: 4096"),
+                BlockSize::B8192 = trace!("CSD block length: 8192"),
+                BlockSize::B16kB = trace!("CSD block length: 16kb"),
+                BlockSize::Unknown = trace!("CSD block length: unknown"),
+                _ => {
+                     trace!("CSD block length: unknown?")
+                }
+            }
             trace!("CSD block count:{}", card.csd.block_count());
             trace!("CSD card size:{}", card.csd.card_size());
             trace!("CSD erase block size:{}", card.csd.erase_size_blocks());
