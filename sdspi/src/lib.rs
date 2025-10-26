@@ -112,7 +112,7 @@ where
     delay: D,
     card: Option<Card>,
     _align: PhantomData<ALIGN>,
-    mut crc_en: bool,
+    crc_en: bool,
 }
 
 impl<SPI, D, ALIGN> SdSpi<SPI, D, ALIGN>
