@@ -48,7 +48,7 @@ pub struct Card {
 impl Card {
     /// Size in bytes
     pub fn size(&self) -> u64 {
-        match card.csd.block_length() {
+        match self.csd.block_length() {
             BlockSize::B2 => u64::from(self.csd.block_count()) * 2,
             BlockSize::B4 => u64::from(self.csd.block_count()) * 4,
             BlockSize::B8 => u64::from(self.csd.block_count()) * 8,
