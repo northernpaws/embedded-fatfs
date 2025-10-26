@@ -48,8 +48,28 @@ pub struct Card {
 impl Card {
     /// Size in bytes
     pub fn size(&self) -> u64 {
-        // SDHC / SDXC / SDUC
-        u64::from(self.csd.block_count()) * 512
+        match card.csd.block_length() {
+            BlockSize::B2 => u64::from(self.csd.block_count()) * 2,
+            BlockSize::B4 => u64::from(self.csd.block_count()) * 4,
+            BlockSize::B8 => u64::from(self.csd.block_count()) * 8,
+            BlockSize::B16 => u64::from(self.csd.block_count()) * 16,
+            BlockSize::B32 => u64::from(self.csd.block_count()) * 32,
+            BlockSize::B64 => u64::from(self.csd.block_count()) * 64,
+            BlockSize::B128 => u64::from(self.csd.block_count()) * 128,
+            BlockSize::B256 => u64::from(self.csd.block_count()) * 256,
+            BlockSize::B512 => u64::from(self.csd.block_count()) * 512,
+            BlockSize::B1024 => u64::from(self.csd.block_count()) * 1024,
+            BlockSize::B2048 => u64::from(self.csd.block_count()) * 2048,
+            BlockSize::B4096 => u64::from(self.csd.block_count()) * 4096,
+            BlockSize::B8192 => u64::from(self.csd.block_count()) * 8192,
+            BlockSize::B16kB => u64::from(self.csd.block_count()) * 16348,
+            BlockSize::Unknown => // Assume it's the common 512
+                 u64::from(self.csd.block_count()) * 512,
+            _ => {
+                 // Assume it's the common 512
+                 u64::from(self.csd.block_count()) * 512
+            }
+        }
     }
 }
 
@@ -215,9 +235,9 @@ where
                 BlockSize::B16 => trace!("CSD block length: 16"),
                 BlockSize::B32 => trace!("CSD block length: 32"),
                 BlockSize::B64 => trace!("CSD block length: 64"),
-                BlockSize::B128 => trace!("CSD block length: 1128"),
+                BlockSize::B128 => trace!("CSD block length: 128"),
                 BlockSize::B256 => trace!("CSD block length: 256"),
-                BlockSize::B512 => trace!("CSD block length: 1512"),
+                BlockSize::B512 => trace!("CSD block length: 512"),
                 BlockSize::B1024 => trace!("CSD block length: 1024"),
                 BlockSize::B2048 => trace!("CSD block length: 2048"),
                 BlockSize::B4096 => trace!("CSD block length: 4096"),
