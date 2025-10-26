@@ -201,8 +201,18 @@ where
             card.cid = u128::from_be_bytes(cid).into();
 
             trace!("Card initialized!");
-            trace!("csd:{:08b}", card.csd);
-            trace!("cid:{:08b}", card.cid);
+            trace!("CID Manufacture: {}", card.cid.manufacturer_id());
+            trace!("CID OEM: {}", card.cid.oem_id());
+            trace!("CID Product Name: {}", card.cid.product_name());
+            trace!("CID Product revision: {}", card.cid.product_revision());
+            trace!("CID Serial: {}", card.cid.serial());
+            trace!("CID Serial: {}", card.cid.serial());
+            trace!("CSD version:{}", card.csd.version());
+            trace!("CSD transfer rate:{}", card.csd.transfer_rate());
+            // TODO: block_length?
+            trace!("CSD block count:{}", card.csd.block_count());
+            trace!("CSD card size:{}", card.csd.card_size());
+            trace!("CSD erase block size:{}", card.csd.erase_size_blocks());
             debug!("Found card with size: {}bytes", card.size());
 
             self.card = Some(card);
