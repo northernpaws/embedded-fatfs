@@ -209,7 +209,6 @@ where
             trace!("CSD version:{}", card.csd.version());
             trace!("CSD transfer rate:{}", card.csd.transfer_rate());
             match card.csd.block_length() {
-                BlockSize::B1 => trace!("CSD block length: 1"),
                 BlockSize::B2 => trace!("CSD block length: 2"),
                 BlockSize::B4 => trace!("CSD block length: 4"),
                 BlockSize::B8 => trace!("CSD block length: 8"),
