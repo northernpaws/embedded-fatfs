@@ -1194,6 +1194,7 @@ pub async fn format_volume<S: ReadWriteSeek>(
             next_free_cluster: None,
             dirty: false,
         };
+        trace!("Seeking to FAT32 fs_info sector... bytes={} fs_info_sector={}", bpb.bytes_from_sectors(bpb.fs_info_sector()), bpb.fs_info_sector());
         storage
             .seek(SeekFrom::Start(bpb.bytes_from_sectors(bpb.fs_info_sector())))
             .await?;
