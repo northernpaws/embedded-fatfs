@@ -6,6 +6,8 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::u32;
 
+use defmt::{trace};
+
 #[cfg(all(not(feature = "std"), feature = "alloc", feature = "lfn"))]
 use alloc::string::String;
 #[cfg(feature = "std")]
@@ -1155,9 +1157,12 @@ pub async fn format_volume<S: ReadWriteSeek>(
     debug_assert!(storage.seek(SeekFrom::Current(0)).await? == 0);
 
     let bytes_per_sector = options.bytes_per_sector.unwrap_or(512);
+    trace!("formatting with {} bytes per sector", bytes_per_sector);
     let total_sectors = if let Some(total_sectors) = options.total_sectors {
+        trace!("Using manually configured {} total sectors", total_sectors);
         total_sectors
     } else {
+        trace!("Seeking to detect total sectors...");
         let total_bytes: u64 = storage.seek(SeekFrom::End(0)).await?;
         let total_sectors_64 = total_bytes / u64::from(bytes_per_sector);
         storage.seek(SeekFrom::Start(0)).await?;
@@ -1167,15 +1172,20 @@ pub async fn format_volume<S: ReadWriteSeek>(
         }
         total_sectors_64 as u32 // safe case: possible overflow is handled above
     };
-
+    
+    trace!("Formatting with {} total sectors", total_sectors);
+    
     // Create boot sector, validate and write to storage device
+    trace!("Creating boot sector..."s);
     let (boot, fat_type) = format_boot_sector(&options, total_sectors, bytes_per_sector)?;
     if boot.validate::<S::Error>().is_err() {
         return Err(Error::InvalidInput);
     }
+    trace!("Serializing boot sector to storage...");
     boot.serialize(storage).await?;
     // Make sure entire logical sector is updated (serialize method always writes 512 bytes)
     let bytes_per_sector = boot.bpb.bytes_per_sector;
+    trace!("Ensuring entire logical sector is updated.. bytes_per_sector = {}", bytes_per_sector);
     write_zeros_until_end_of_sector(storage, bytes_per_sector).await?;
 
     let bpb = &boot.bpb;
@@ -1189,10 +1199,12 @@ pub async fn format_volume<S: ReadWriteSeek>(
         storage
             .seek(SeekFrom::Start(bpb.bytes_from_sectors(bpb.fs_info_sector())))
             .await?;
+        trace!("Serializing FAT32 fs_info sector to storage...");
         fs_info_sector.serialize(storage).await?;
         write_zeros_until_end_of_sector(storage, bytes_per_sector).await?;
 
         // backup boot sector
+        trace!("Serializing FAT32 backup boot sector to storage...");
         storage
             .seek(SeekFrom::Start(bpb.bytes_from_sectors(bpb.backup_boot_sector())))
             .await?;
@@ -1204,9 +1216,11 @@ pub async fn format_volume<S: ReadWriteSeek>(
     let reserved_sectors = bpb.reserved_sectors();
     let fat_pos = bpb.bytes_from_sectors(reserved_sectors);
     let sectors_per_all_fats = bpb.sectors_per_all_fats();
+    trace!("Zeroing file allocation table... reserved_sectors={} fat_pos={} sectors_per_all_fats={}", reserved_sectors, fat_pos, sectors_per_all_fats);
     storage.seek(SeekFrom::Start(fat_pos)).await?;
     write_zeros(storage, bpb.bytes_from_sectors(sectors_per_all_fats)).await?;
     {
+        trace!("Formatting FAT volume...");
         let mut fat_slice = fat_slice::<S, &mut S>(storage, bpb);
         let sectors_per_fat = bpb.sectors_per_fat();
         let bytes_per_fat = bpb.bytes_from_sectors(sectors_per_fat);
@@ -1217,6 +1231,7 @@ pub async fn format_volume<S: ReadWriteSeek>(
     let root_dir_first_sector = reserved_sectors + sectors_per_all_fats;
     let root_dir_sectors = bpb.root_dir_sectors();
     let root_dir_pos = bpb.bytes_from_sectors(root_dir_first_sector);
+    trace!("Creating initial root directory... root_dir_first_sector={} root_dir_sectors={} root_dir_pos={}", root_dir_first_sector, root_dir_sectors, root_dir_pos);
     storage.seek(SeekFrom::Start(root_dir_pos)).await?;
     write_zeros(storage, bpb.bytes_from_sectors(root_dir_sectors)).await?;
     if fat_type == FatType::Fat32 {
@@ -1229,12 +1244,14 @@ pub async fn format_volume<S: ReadWriteSeek>(
         let data_sectors_before_root_dir = bpb.sectors_from_clusters(root_dir_first_cluster - RESERVED_FAT_ENTRIES);
         let fat32_root_dir_first_sector = first_data_sector + data_sectors_before_root_dir;
         let fat32_root_dir_pos = bpb.bytes_from_sectors(fat32_root_dir_first_sector);
+        trace!("Creating FAT32 root cluster...");
         storage.seek(SeekFrom::Start(fat32_root_dir_pos)).await?;
         write_zeros(storage, u64::from(bpb.cluster_size())).await?;
     }
 
     // Create volume label directory entry if volume label is specified in options
     if let Some(volume_label) = options.volume_label {
+        trace!("Creating volume label entry...");
         storage.seek(SeekFrom::Start(root_dir_pos)).await?;
         let volume_entry = DirFileEntryData::new(volume_label, FileAttributes::VOLUME_ID);
         volume_entry.serialize(storage).await?;
