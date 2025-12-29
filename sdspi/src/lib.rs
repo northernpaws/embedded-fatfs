@@ -443,15 +443,18 @@ where
             .await
             .map_err(|_| Error::SpiError)?;
         self.spi.write(buffer).await.map_err(|_| Error::SpiError)?;
-        let crc_bytes = crc16(buffer).to_be_bytes();
-        self.spi
-            .write(&crc_bytes)
-            .await
-            .map_err(|_| Error::SpiError)?;
 
-        let status = self.read_byte().await?;
-        if (status & DATA_RES_MASK) != DATA_RES_ACCEPTED {
-            return Err(Error::WriteError);
+        if self.crc_en {
+            let crc_bytes = crc16(buffer).to_be_bytes();
+            self.spi
+                .write(&crc_bytes)
+                .await
+                .map_err(|_| Error::SpiError)?;
+
+            let status = self.read_byte().await?;
+            if (status & DATA_RES_MASK) != DATA_RES_ACCEPTED {
+                return Err(Error::WriteError);
+            }
         }
 
         Ok(())
