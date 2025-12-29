@@ -7,7 +7,7 @@ use core::fmt::Debug;
 use core::future::Future;
 use core::marker::PhantomData;
 use embassy_futures::select::{select, Either};
-use sdio_host::sd::{CardCapacity, CID, CSD, OCR, SD, BlockSize};
+use sdio_host::sd::{BlockSize, CardCapacity, CID, CSD, OCR, SD};
 use sdio_host::{common_cmd::*, sd_cmd::*};
 
 // MUST be the first module listed
@@ -63,11 +63,14 @@ impl Card {
             BlockSize::B4096 => u64::from(self.csd.block_count()) * 4096,
             BlockSize::B8192 => u64::from(self.csd.block_count()) * 8192,
             BlockSize::B16kB => u64::from(self.csd.block_count()) * 16348,
-            BlockSize::Unknown => // Assume it's the common 512
-                 u64::from(self.csd.block_count()) * 512,
+            BlockSize::Unknown =>
+            // Assume it's the common 512
+            {
+                u64::from(self.csd.block_count()) * 512
+            }
             _ => {
-                 // Assume it's the common 512
-                 u64::from(self.csd.block_count()) * 512
+                // Assume it's the common 512
+                u64::from(self.csd.block_count()) * 512
             }
         }
     }
@@ -113,6 +116,8 @@ where
     card: Option<Card>,
     _align: PhantomData<ALIGN>,
     crc_en: bool,
+    byte_addressing: bool,
+    block_length: u32,
 }
 
 impl<SPI, D, ALIGN> SdSpi<SPI, D, ALIGN>
@@ -128,13 +133,15 @@ where
             card: None,
             _align: PhantomData,
             crc_en: false,
+            byte_addressing: false,
+            block_length: BlockSize::B512,
         }
     }
 
     /// To comply with the SD card spec, [sd_init] must be called between powerup and calling this function.
     pub async fn init(&mut self, crc_en: bool) -> Result<(), Error> {
         self.crc_en = crc_en;
-        
+
         let r = async {
             with_timeout(self.delay.clone(), 1000, async {
                 loop {
@@ -252,7 +259,7 @@ where
                 BlockSize::B16kB => trace!("CSD block length: 16kb"),
                 BlockSize::Unknown => trace!("CSD block length: unknown"),
                 _ => {
-                     trace!("CSD block length: unknown?")
+                    trace!("CSD block length: unknown?")
                 }
             }
             trace!("CSD block count:{}", card.csd.block_count());
@@ -261,8 +268,34 @@ where
             trace!("OCR is busy:{}", card.ocr.is_busy());
             trace!("OCR over 2tb:{}", card.ocr.over_2tb());
             trace!("OCR UHS-II:{}", card.ocr.uhs2_card_status());
-            trace!("OCR high-capacity (true for SDHC/SDXC/SDUC, false for SDSC):{}", card.ocr.high_capacity());
+            trace!(
+                "OCR high-capacity (true for SDHC/SDXC/SDUC, false for SDSC):{}",
+                card.ocr.high_capacity()
+            );
             debug!("Found card with size: {}bytes", card.size());
+
+            // "Standard Capacity" cards (typically for 2GB and under) uses
+            // byte-by-byte addressing that needs some extra considerations
+            // for memory code.
+            self.byte_addressing = !card.ocr.high_capacity();
+            self.block_length = match card.csd.block_length() {
+                BlockSize::B2 => 2,
+                BlockSize::B4 => 4,
+                BlockSize::B8 => 8,
+                BlockSize::B16 => 16,
+                BlockSize::B32 => 32,
+                BlockSize::B64 => 64,
+                BlockSize::B128 => 128,
+                BlockSize::B256 => 256,
+                BlockSize::B512 => 512,
+                BlockSize::B1024 => 1024,
+                BlockSize::B2048 => 2048,
+                BlockSize::B4096 => 4096,
+                BlockSize::B8192 => 8192,
+                BlockSize::B16kB => 16384,
+                BlockSize::Unknown => 512,
+                _ => 512,
+            };
 
             self.card = Some(card);
 
@@ -275,9 +308,15 @@ where
 
     pub async fn read<const SIZE: usize>(
         &mut self,
-        block_address: u32,
+        mut block_address: u32,
         data: &mut [Aligned<ALIGN, [u8; SIZE]>],
     ) -> Result<(), Error> {
+        if self.byte_addressing {
+            // Multiple the second number by the block size to convert
+            // the sector/block addressing into byte addressing.
+            block_address = block_address * self.block_length;
+        }
+
         let r = async {
             if data.len() == 1 {
                 self.cmd(read_single_block(block_address)).await?;
@@ -300,9 +339,15 @@ where
 
     pub async fn write<const SIZE: usize>(
         &mut self,
-        block_address: u32,
+        mut block_address: u32,
         data: &[Aligned<ALIGN, [u8; SIZE]>],
     ) -> Result<(), Error> {
+        if self.byte_addressing {
+            // Multiple the second number by the block size to convert
+            // the sector/block addressing into byte addressing.
+            block_address = block_address * self.block_length;
+        }
+
         let r = async {
             if data.len() == 1 {
                 self.cmd(write_single_block(block_address)).await?;
