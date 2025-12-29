@@ -11,9 +11,7 @@ license = "MIT"
 description = """
 FAT filesystem library.
 """
-exclude = [
-    "resources/*",
-]
+exclude = ["resources/*"]
 
 [features]
 # Use Rust std library
@@ -40,8 +38,12 @@ bitflags = "1.0"
 embedded-io-async = "0.7.0"
 
 # optional deps
-embedded-io-adapters = { version = "0.6", package = "embedded-io-adapters", features = ["tokio-1"], optional = true }
-chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
+embedded-io-adapters = { version = "0.7", package = "embedded-io-adapters", features = [
+    "tokio-1",
+], optional = true }
+chrono = { version = "0.4", default-features = false, features = [
+    "clock",
+], optional = true }
 tokio = { version = "1", default-features = false, optional = true }
 elain = { version = "0.3", optional = true }
 log = { version = "0.4", optional = true }
@@ -49,5 +51,10 @@ defmt = { version = "0.3", optional = true }
 
 [dev-dependencies]
 env_logger = "0.9"
-tokio = { version = "1", default-features = false, features = ["fs", "rt-multi-thread", "macros", "io-util"] }
+tokio = { version = "1", default-features = false, features = [
+    "fs",
+    "rt-multi-thread",
+    "macros",
+    "io-util",
+] }
 anyhow = "1"
