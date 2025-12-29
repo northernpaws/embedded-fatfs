@@ -297,6 +297,10 @@ where
                 _ => 512,
             };
 
+            if !self.byte_addressing {
+                trace!("using byte addressing instead of sector addressing");
+            }
+
             self.card = Some(card);
 
             Ok(())
