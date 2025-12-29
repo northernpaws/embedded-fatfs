@@ -1,3 +1,5 @@
+use core::{error, fmt};
+
 use aligned::Aligned;
 use block_device_driver::{slice_to_blocks, slice_to_blocks_mut, BlockDevice};
 use embedded_io_async::{ErrorKind, Read, Seek, SeekFrom, Write};
@@ -14,6 +16,16 @@ impl<T> From<T> for BufStreamError<T> {
         BufStreamError::Io(t)
     }
 }
+
+impl<T: core::fmt::Debug> fmt::Display for BufStreamError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BufStreamError::Io(err) => write!(f, "Io: {:?}", err),
+        }
+    }
+}
+
+impl<T: core::fmt::Debug> error::Error for BufStreamError<T> {}
 
 impl<T: core::fmt::Debug> embedded_io_async::Error for BufStreamError<T> {
     fn kind(&self) -> ErrorKind {
@@ -256,6 +268,11 @@ mod tests {
     impl<T: Read + Write + Seek> Write for TestBlockDevice<T> {
         async fn write(&mut self, buf: &[u8]) -> Result<usize, Self::Error> {
             Ok(self.0.write(buf).await?)
+        }
+
+        #[inline]
+        async fn flush(&mut self) -> Result<(), Self::Error> {
+            Ok(()) // no-op
         }
     }
 

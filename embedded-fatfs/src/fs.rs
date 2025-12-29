@@ -1170,11 +1170,11 @@ pub async fn format_volume<S: ReadWriteSeek>(
         }
         total_sectors_64 as u32 // safe case: possible overflow is handled above
     };
-    
+
     trace!("Formatting with {} total sectors", total_sectors);
-    
+
     // Create boot sector, validate and write to storage device
-    trace!("Creating boot sector..."s);
+    trace!("Creating boot sector...");
     let (boot, fat_type) = format_boot_sector(&options, total_sectors, bytes_per_sector)?;
     if boot.validate::<S::Error>().is_err() {
         return Err(Error::InvalidInput);
@@ -1183,7 +1183,10 @@ pub async fn format_volume<S: ReadWriteSeek>(
     boot.serialize(storage).await?;
     // Make sure entire logical sector is updated (serialize method always writes 512 bytes)
     let bytes_per_sector = boot.bpb.bytes_per_sector;
-    trace!("Ensuring entire logical sector is updated.. bytes_per_sector = {}", bytes_per_sector);
+    trace!(
+        "Ensuring entire logical sector is updated.. bytes_per_sector = {}",
+        bytes_per_sector
+    );
     write_zeros_until_end_of_sector(storage, bytes_per_sector).await?;
 
     let bpb = &boot.bpb;
@@ -1194,7 +1197,11 @@ pub async fn format_volume<S: ReadWriteSeek>(
             next_free_cluster: None,
             dirty: false,
         };
-        trace!("Seeking to FAT32 fs_info sector... bytes={} fs_info_sector={}", bpb.bytes_from_sectors(bpb.fs_info_sector()), bpb.fs_info_sector());
+        trace!(
+            "Seeking to FAT32 fs_info sector... bytes={} fs_info_sector={}",
+            bpb.bytes_from_sectors(bpb.fs_info_sector()),
+            bpb.fs_info_sector()
+        );
         storage
             .seek(SeekFrom::Start(bpb.bytes_from_sectors(bpb.fs_info_sector())))
             .await?;
@@ -1215,7 +1222,12 @@ pub async fn format_volume<S: ReadWriteSeek>(
     let reserved_sectors = bpb.reserved_sectors();
     let fat_pos = bpb.bytes_from_sectors(reserved_sectors);
     let sectors_per_all_fats = bpb.sectors_per_all_fats();
-    trace!("Zeroing file allocation table... reserved_sectors={} fat_pos={} sectors_per_all_fats={}", reserved_sectors, fat_pos, sectors_per_all_fats);
+    trace!(
+        "Zeroing file allocation table... reserved_sectors={} fat_pos={} sectors_per_all_fats={}",
+        reserved_sectors,
+        fat_pos,
+        sectors_per_all_fats
+    );
     storage.seek(SeekFrom::Start(fat_pos)).await?;
     write_zeros(storage, bpb.bytes_from_sectors(sectors_per_all_fats)).await?;
     {
@@ -1230,7 +1242,12 @@ pub async fn format_volume<S: ReadWriteSeek>(
     let root_dir_first_sector = reserved_sectors + sectors_per_all_fats;
     let root_dir_sectors = bpb.root_dir_sectors();
     let root_dir_pos = bpb.bytes_from_sectors(root_dir_first_sector);
-    trace!("Creating initial root directory... root_dir_first_sector={} root_dir_sectors={} root_dir_pos={}", root_dir_first_sector, root_dir_sectors, root_dir_pos);
+    trace!(
+        "Creating initial root directory... root_dir_first_sector={} root_dir_sectors={} root_dir_pos={}",
+        root_dir_first_sector,
+        root_dir_sectors,
+        root_dir_pos
+    );
     storage.seek(SeekFrom::Start(root_dir_pos)).await?;
     write_zeros(storage, bpb.bytes_from_sectors(root_dir_sectors)).await?;
     if fat_type == FatType::Fat32 {

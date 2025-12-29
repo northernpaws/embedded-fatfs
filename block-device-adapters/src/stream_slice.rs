@@ -1,5 +1,6 @@
-use core::cmp;
+use core::error::Error;
 use core::fmt::Debug;
+use core::{cmp, fmt};
 use embedded_io_async::{Read, Seek, SeekFrom, Write};
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -16,6 +17,18 @@ impl<E: Debug> From<E> for StreamSliceError<E> {
         Self::Other(e)
     }
 }
+
+impl<E: Debug> fmt::Display for StreamSliceError<E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StreamSliceError::InvalidSeek(index) => write!(f, "Invalid Seek: {}", index),
+            StreamSliceError::WriteZero => write!(f, "Write Zero"),
+            StreamSliceError::Other(other) => write!(f, "Other: {:?}", other),
+        }
+    }
+}
+
+impl<E: Debug> Error for StreamSliceError<E> {}
 
 /// Stream wrapper for accessing limited segment of data from underlying file or device.
 pub struct StreamSlice<T: Read + Write + Seek> {
