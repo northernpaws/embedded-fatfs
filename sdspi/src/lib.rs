@@ -134,7 +134,7 @@ where
             _align: PhantomData,
             crc_en: false,
             byte_addressing: false,
-            block_length: BlockSize::B512,
+            block_length: 512,
         }
     }
 
